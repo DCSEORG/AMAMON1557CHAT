@@ -1,3 +1,4 @@
 add a setting in the genai IaC code which will be include-chat-ui and it is defaulted to false which means the chat UI and genAI functionality will NOT be deployed or used
 if this is set to TRUE then it will be deployed and the app will have the genAI chat ui
-update the docs to make it clear how to deploy with and without the chat ui, but make sure the default instruction is simple
+update the docs to make it clear how to deploy with and without the chat ui, but make sure the default instruction is simple.
+make sure the setting from the deploy.sh file is used as a variable in the genai bicep file and hence changing it once reflects all places in the bicep files
