@@ -1,0 +1,168 @@
+﻿@page
+@model IndexModel
+@{
+    ViewData["Title"] = "Expense Management System";
+}
+
+@if (!string.IsNullOrEmpty(Model.ErrorMessage))
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <strong>Database Connection Error:</strong><br/>
+        @Html.Raw(Model.ErrorMessage)
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col">
+            <h1 class="display-5 mb-3">
+                <i class="bi bi-receipt"></i> Expense Management
+            </h1>
+            <div class="btn-group" role="group">
+                <a href="/AddExpense" class="btn btn-primary">
+                    <i class="bi bi-plus-circle"></i> Add Expense
+                </a>
+                <a href="/ApproveExpenses" class="btn btn-success">
+                    <i class="bi bi-check-circle"></i> Approve Expenses
+                </a>
+                <a href="/swagger" class="btn btn-info" target="_blank">
+                    <i class="bi bi-code-square"></i> API Documentation
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-3">
+        <div class="col-md-6">
+            <div class="input-group">
+                <span class="input-group-text"><i class="bi bi-search"></i></span>
+                <input type="text" class="form-control" id="filterInput" placeholder="Filter expenses...">
+            </div>
+        </div>
+        <div class="col-md-6 text-end">
+            <div class="btn-group" role="group">
+                <button type="button" class="btn btn-outline-secondary" onclick="filterByStatus('All')">All</button>
+                <button type="button" class="btn btn-outline-info" onclick="filterByStatus('Draft')">Draft</button>
+                <button type="button" class="btn btn-outline-warning" onclick="filterByStatus('Submitted')">Submitted</button>
+                <button type="button" class="btn btn-outline-success" onclick="filterByStatus('Approved')">Approved</button>
+                <button type="button" class="btn btn-outline-danger" onclick="filterByStatus('Rejected')">Rejected</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover" id="expenseTable">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Date</th>
+                            <th>Category</th>
+                            <th>Amount</th>
+                            <th>Status</th>
+                            <th>Description</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="expenseTableBody">
+                        @foreach (var expense in Model.Expenses)
+                        {
+                            <tr data-status="@expense.StatusName">
+                                <td>@expense.ExpenseDate.ToString("dd/MM/yyyy")</td>
+                                <td>@expense.CategoryName</td>
+                                <td>£@expense.AmountGBP.ToString("F2")</td>
+                                <td>
+                                    <span class="badge bg-@GetStatusBadgeClass(expense.StatusName)">
+                                        @expense.StatusName
+                                    </span>
+                                </td>
+                                <td>@(expense.Description ?? "-")</td>
+                                <td>
+                                    @if (expense.StatusName == "Draft")
+                                    {
+                                        <button class="btn btn-sm btn-primary" onclick="submitExpense(@expense.ExpenseId)">
+                                            <i class="bi bi-send"></i> Submit
+                                        </button>
+                                    }
+                                    <button class="btn btn-sm btn-danger" onclick="deleteExpense(@expense.ExpenseId)">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+@functions {
+    string GetStatusBadgeClass(string status) => status switch
+    {
+        "Draft" => "secondary",
+        "Submitted" => "warning",
+        "Approved" => "success",
+        "Rejected" => "danger",
+        _ => "secondary"
+    };
+}
+
+@section Scripts {
+    <script>
+        function filterByStatus(status) {
+            const rows = document.querySelectorAll('#expenseTableBody tr');
+            rows.forEach(row => {
+                if (status === 'All' || row.dataset.status === status) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        }
+
+        document.getElementById('filterInput').addEventListener('input', function(e) {
+            const filter = e.target.value.toLowerCase();
+            const rows = document.querySelectorAll('#expenseTableBody tr');
+            rows.forEach(row => {
+                const text = row.textContent.toLowerCase();
+                row.style.display = text.includes(filter) ? '' : 'none';
+            });
+        });
+
+        async function submitExpense(id) {
+            if (!confirm('Submit this expense for approval?')) return;
+            
+            try {
+                const response = await fetch(`/api/expenses/${id}/submit`, {
+                    method: 'POST'
+                });
+                if (response.ok) {
+                    location.reload();
+                } else {
+                    alert('Error submitting expense');
+                }
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        }
+
+        async function deleteExpense(id) {
+            if (!confirm('Delete this expense?')) return;
+            
+            try {
+                const response = await fetch(`/api/expenses/${id}`, {
+                    method: 'DELETE'
+                });
+                if (response.ok) {
+                    location.reload();
+                } else {
+                    alert('Error deleting expense');
+                }
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        }
+    </script>
+}
