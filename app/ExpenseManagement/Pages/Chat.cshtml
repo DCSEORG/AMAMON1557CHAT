@@ -1,0 +1,170 @@
+@page
+@model ChatModel
+@{
+    ViewData["Title"] = "AI Chat Assistant";
+}
+
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-lg-8 mx-auto">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">
+                        <i class="bi bi-chat-dots"></i> AI Expense Assistant
+                    </h4>
+                    <small>Ask me anything about expenses using natural language</small>
+                </div>
+                <div class="card-body" style="height: 500px; overflow-y: auto;" id="chatContainer">
+                    <div id="messages">
+                        <div class="message assistant-message mb-3">
+                            <div class="d-flex align-items-start">
+                                <div class="avatar bg-primary text-white rounded-circle me-2 d-flex align-items-center justify-content-center" style="width: 40px; height: 40px; flex-shrink: 0;">
+                                    <i class="bi bi-robot"></i>
+                                </div>
+                                <div class="message-content bg-light p-3 rounded">
+                                    <p class="mb-0">Hello! I'm your AI Expense Assistant. I can help you with:</p>
+                                    <ul class="mb-0 mt-2">
+                                        <li>Viewing and filtering expenses</li>
+                                        <li>Creating new expenses</li>
+                                        <li>Submitting expenses for approval</li>
+                                        <li>Approving or rejecting expenses</li>
+                                        <li>Viewing categories and users</li>
+                                    </ul>
+                                    <p class="mb-0 mt-2">Try asking: "Show me all submitted expenses" or "Create a new travel expense for £50"</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <form id="chatForm" onsubmit="return sendMessage(event);">
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="messageInput" 
+                                   placeholder="Type your message..." autocomplete="off" required>
+                            <button class="btn btn-primary" type="submit" id="sendButton">
+                                <i class="bi bi-send"></i> Send
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <div class="mt-3 text-center">
+                <a href="/Index" class="btn btn-secondary">
+                    <i class="bi bi-arrow-left"></i> Back to Expenses
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        let conversationHistory = [];
+
+        async function sendMessage(event) {
+            event.preventDefault();
+            
+            const input = document.getElementById('messageInput');
+            const message = input.value.trim();
+            if (!message) return false;
+            
+            // Display user message
+            appendMessage('user', message);
+            input.value = '';
+            
+            // Disable send button
+            const sendButton = document.getElementById('sendButton');
+            sendButton.disabled = true;
+            sendButton.innerHTML = '<i class="bi bi-hourglass-split"></i> Thinking...';
+            
+            try {
+                // Send to server
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        message: message,
+                        conversationHistory: conversationHistory
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to get response');
+                }
+                
+                const data = await response.json();
+                
+                // Update conversation history
+                conversationHistory.push({ role: 'user', content: message });
+                conversationHistory.push({ role: 'assistant', content: data.response });
+                
+                // Display assistant message
+                appendMessage('assistant', data.response);
+            } catch (error) {
+                appendMessage('assistant', '❌ Error: ' + error.message);
+            } finally {
+                // Re-enable send button
+                sendButton.disabled = false;
+                sendButton.innerHTML = '<i class="bi bi-send"></i> Send';
+            }
+            
+            return false;
+        }
+
+        function appendMessage(role, content) {
+            const messagesDiv = document.getElementById('messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${role}-message mb-3`;
+            
+            if (role === 'user') {
+                messageDiv.innerHTML = `
+                    <div class="d-flex align-items-start justify-content-end">
+                        <div class="message-content bg-primary text-white p-3 rounded">
+                            ${escapeHtml(content)}
+                        </div>
+                        <div class="avatar bg-secondary text-white rounded-circle ms-2 d-flex align-items-center justify-content-center" style="width: 40px; height: 40px; flex-shrink: 0;">
+                            <i class="bi bi-person"></i>
+                        </div>
+                    </div>
+                `;
+            } else {
+                messageDiv.innerHTML = `
+                    <div class="d-flex align-items-start">
+                        <div class="avatar bg-primary text-white rounded-circle me-2 d-flex align-items-center justify-content-center" style="width: 40px; height: 40px; flex-shrink: 0;">
+                            <i class="bi bi-robot"></i>
+                        </div>
+                        <div class="message-content bg-light p-3 rounded" style="white-space: pre-wrap;">
+                            ${escapeHtml(content)}
+                        </div>
+                    </div>
+                `;
+            }
+            
+            messagesDiv.appendChild(messageDiv);
+            
+            // Scroll to bottom
+            const container = document.getElementById('chatContainer');
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    </script>
+}
+
+<style>
+    .message-content {
+        max-width: 70%;
+        word-wrap: break-word;
+    }
+    
+    #chatContainer {
+        background-color: #f8f9fa;
+    }
+</style>
